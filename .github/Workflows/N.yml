@@ -1,0 +1,17 @@
+name: project
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          unzip -o news-scraper-python.zip -x '.github/*' '*__pycache__*'
+          rm news-scraper-python.zip
+          git config user.name "darkness-bot"
+          git config user.email "darkness-bot@users.noreply.github.com"
+          git add -A
+          git commit -m "Extract project"
+          git push
