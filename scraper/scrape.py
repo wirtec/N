@@ -572,7 +572,7 @@ setMode(localStorage.getItem('mode')||'both');
 # --------------------------------------------------------------------------- #
 def main() -> None:
     ap = argparse.ArgumentParser(description="Scrape a Google News RSS feed: titles, dates, links, full text, images, EN+FA")
-    ap.add_argument("--feed", default=os.environ.get("FEED_URL", DEFAULT_FEED))
+    ap.add_argument("--feed", default=os.environ.get("FEED_URL") or DEFAULT_FEED)
     ap.add_argument("--limit", type=int, default=int(os.environ.get("LIMIT", "10")), help="max articles to open per run")
     ap.add_argument("--no-translate", action="store_true", help="skip Persian translation")
     ap.add_argument("--out", default="output", help="output directory")
