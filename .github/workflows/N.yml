@@ -1,17 +1,76 @@
-name: project
-on: workflow_dispatch
+name: Scrape Google News (EN/FA)
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"        # every 30 minutes
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max articles to open per run"
+        default: "10"
+      translate:
+        description: "Translate to Persian (true/false)"
+        default: "true"
+
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
 jobs:
-  unzip:
+  scrape:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          unzip -o news-scraper-python.zip -x '.github/*' '*__pycache__*'
-          rm news-scraper-python.zip
-          git config user.name "darkness-bot"
-          git config user.email "darkness-bot@users.noreply.github.com"
-          git add -A
-          git commit -m "Extract project"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scraper/requirements.txt
+
+      - name: Run scraper
+        working-directory: scraper
+        env:
+          FEED_URL: ${{ vars.FEED_URL }}                  # optional – defaults to the topic feed in scrape.py
+          API_URL: ${{ secrets.API_URL }}                 # optional – e.g. https://your-app.vercel.app
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}       # optional – must match INGEST_TOKEN of the web app
+        run: |
+          TRANSLATE="${{ github.event.inputs.translate || 'true' }}"
+          FLAGS=""
+          if [ "$TRANSLATE" != "true" ]; then FLAGS="--no-translate"; fi
+          python scrape.py --limit "${{ github.event.inputs.limit || '10' }}" --out output $FLAGS
+
+      - name: Commit output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add scraper/output/news.json scraper/output/index.html
+          git diff --cached --quiet || git commit -m "chore: update scraped news $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: news-output
+          path: scraper/output
+
+      # ---- optional: publish scraper/output to GitHub Pages ----
+      - name: Setup Pages
+        if: ${{ vars.PUBLISH_PAGES == 'true' }}
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        if: ${{ vars.PUBLISH_PAGES == 'true' }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: scraper/output
+      - name: Deploy to GitHub Pages
+        if: ${{ vars.PUBLISH_PAGES == 'true' }}
+        uses: actions/deploy-pages@v4
