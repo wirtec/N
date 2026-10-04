@@ -1,0 +1,8 @@
+requests>=2.31
+feedparser>=6.0
+beautifulsoup4>=4.12
+lxml>=5.0
+trafilatura>=1.8
+deep-translator>=1.11
+fastapi>=0.110
+uvicorn[standard]>=0.29
